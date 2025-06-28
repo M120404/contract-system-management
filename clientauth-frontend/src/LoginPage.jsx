@@ -126,7 +126,7 @@ const LoginPage = () => {
       <div className="absolute right-0 top-0 h-full w-full md:w-1/3 bg-white/90 p-10 flex flex-col justify-center items-center shadow-2xl z-10">
         <div className="text-center mb-8">
           <FaUserShield className="text-5xl text-[#3ab6de] mx-auto mb-2" />
-          <h2 className="text-3xl font-bold text-gray-800">Welcome to ClientAuth</h2>
+          <h2 className="text-3xl font-bold text-gray-800"> ContractHub </h2>
         </div>
 
         {error && (
