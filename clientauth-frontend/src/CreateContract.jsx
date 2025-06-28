@@ -12,13 +12,6 @@ const contractTypes = [
   'Non-Disclosure Agreement',
 ];
 
-const hardcodedSubcontracts = [
-  { id: '1', title: 'UI Redesign' },
-  { id: '2', title: 'SubcontractBackend Optimization' },
-  { id: '3', title: 'CMS Plugin Integration' },
-  { id: '4', title: 'API Integration' }
-];
-
 const CreateContract = () => {
   const navigate = useNavigate();
   const { theme } = useTheme();
@@ -66,13 +59,32 @@ const CreateContract = () => {
   });
 
   const [templates, setTemplates] = useState([]);
+  const [subcontracts, setSubcontracts] = useState([]);
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    axios.get('/api/templates')
-      .then(res => setTemplates(res.data))
-      .catch(err => console.error('Failed to fetch templates:', err));
+    const fetchData = async () => {
+      try {
+        const user = auth.currentUser;
+        if (!user) return;
+
+        const idToken = await user.getIdToken();
+        const headers = { Authorization: `Bearer ${idToken}` };
+
+        const [templatesRes, subcontractsRes] = await Promise.all([
+          axios.get('/api/templates', { headers }),
+          axios.get('/api/subcontracts', { headers })
+        ]);
+
+        setTemplates(templatesRes.data);
+        setSubcontracts(subcontractsRes.data);
+      } catch (error) {
+        console.error('Failed to fetch data:', error);
+      }
+    };
+
+    fetchData();
   }, []);
 
   const handleChange = (e) => {
@@ -94,42 +106,55 @@ const CreateContract = () => {
       if (!user) throw new Error("User is not logged in");
 
       const idToken = await user.getIdToken();
+      const headers = { Authorization: `Bearer ${idToken}` };
 
-      // ✅ Clean dates: convert empty strings to null
-      const cleanedFormData = {
-        ...formData,
+      // Construct payload with proper types matching backend DTO
+      const contractPayload = {
+        title: formData.title,
+        customer: formData.customer,
+        contractNumber: formData.contractNumber,
+        contractType: formData.contractType,
+        rep: formData.rep,
         effectiveDate: formData.effectiveDate || null,
+        invoiceTiming: formData.invoiceTiming,
+        lastInvoicedDate: formData.lastInvoicedDate || null,
         lastStatementDate: formData.lastStatementDate || null,
-        lastInvoicedDate: formData.lastInvoicedDate || null
+        unusedAmount: formData.unusedAmount ? Number(formData.unusedAmount) : 0,
+        overageAmount: formData.overageAmount ? Number(formData.overageAmount) : 0,
+        contractTemplateId: formData.contractTemplateId ? Number(formData.contractTemplateId) : null,
+        description: formData.description,
+        subcontractIds: formData.subcontractIds.map(id => Number(id)),
+        createdByEmail: user.email
       };
 
-      const response = await axios.post('http://localhost:8081/api/contracts', cleanedFormData, {
-        headers: {
-          Authorization: `Bearer ${idToken}`
-        }
-      });
+      console.log("Final payload:", contractPayload);
 
-      // ✅ Optionally link subcontracts if needed
-      if (cleanedFormData.subcontractIds.length > 0) {
+      // Create contract
+      const response = await axios.post('http://localhost:8081/api/contracts', contractPayload, { headers });
+
+      // Link subcontracts if any selected
+      if (contractPayload.subcontractIds.length > 0) {
         await Promise.all(
-          cleanedFormData.subcontractIds.map(subId =>
+          contractPayload.subcontractIds.map(subId =>
             axios.patch(`/api/subcontracts/${subId}`, {
               contract_id: response.data.id
-            }, {
-              headers: { Authorization: `Bearer ${idToken}` }
-            })
+            }, { headers })
           )
         );
       }
 
-      setMessage('Contract saved successfully with subcontracts!');
-      navigate('/contracts');
+      setMessage('Contract created successfully!');
+      setTimeout(() => navigate('/contracts'), 1500);
     } catch (error) {
-      console.error('Error creating contract:', error);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        stack: error.stack
+      });
       setMessage(
-        error.response?.data?.error ||
+        error.response?.data?.message ||
         error.message ||
-        'Error creating contract. Please try again.'
+        'Failed to create contract. Please try again.'
       );
     } finally {
       setIsSubmitting(false);
@@ -163,6 +188,7 @@ const CreateContract = () => {
                   value={formData[name]}
                   onChange={handleChange}
                   className={`w-full border rounded-md px-3 py-2 ${currentTheme.select}`}
+                  required
                 >
                   {contractTypes.map(option => (
                     <option key={option} value={option}>{option}</option>
@@ -175,6 +201,7 @@ const CreateContract = () => {
                   value={formData[name]}
                   onChange={handleChange}
                   className={`w-full border rounded-md px-3 py-2 ${currentTheme.input}`}
+                  required={type !== 'date' && type !== 'number'}
                 />
               )}
             </div>
@@ -196,16 +223,6 @@ const CreateContract = () => {
                 <option key={t.id} value={t.id}>{t.templateName} (v{t.version})</option>
               ))}
             </select>
-            {formData.contractTemplateId && (
-              <a
-                href={`/api/templates/${formData.contractTemplateId}/download`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`${theme === 'light' ? 'text-blue-600' : 'text-blue-400'} text-sm underline mt-1 block`}
-              >
-                View selected template
-              </a>
-            )}
           </div>
 
           {/* Subcontracts */}
@@ -220,7 +237,7 @@ const CreateContract = () => {
               onChange={handleSubcontractChange}
               className={`w-full border rounded-md px-3 py-2 h-32 ${currentTheme.select}`}
             >
-              {hardcodedSubcontracts.map(sub => (
+              {subcontracts.map(sub => (
                 <option key={sub.id} value={sub.id}>{sub.title}</option>
               ))}
             </select>

@@ -1,75 +1,44 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import axios from 'axios';
+import { auth } from './firebase';
 
 const ViewContracts = () => {
-  const [filter, setFilter] = useState('all');
+  const [contracts, setContracts] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  const [contracts, setContracts] = useState([
-    {
-      id: 1,
-      title: 'Website Development Contract',
-      contract_type: 'Service',
-      status: 'DRAFT',
-      createdAt: new Date(),
-      subcontracts: [],
-    },
-    {
-      id: 2,
-      title: 'Product Supply Agreement',
-      contract_type: 'Procurement',
-      status: 'PENDING_REVIEW',
-      createdAt: new Date(),
-      subcontracts: [
-        { id: 101, title: 'Logistics Agreement' },
-        { id: 102, title: 'Warehousing Subcontract' },
-      ],
-    },
-    {
-      id: 3,
-      title: 'HR Outsourcing Agreement',
-      contract_type: 'Outsourcing',
-      status: 'APPROVED',
-      createdAt: new Date(),
-      subcontracts: [],
-    },
-    {
-      id: 4,
-      title: 'Annual Maintenance Contract',
-      contract_type: 'Service',
-      status: 'REJECTED',
-      createdAt: new Date(),
-      subcontracts: [],
-    },
-    {
-      id: 5,
-      title: 'Cloud Service SLA',
-      contract_type: 'IT',
-      status: 'DRAFT',
-      createdAt: new Date(),
-      subcontracts: [],
-    },
-    {
-      id: 6,
-      title: 'Consulting Agreement',
-      contract_type: 'Consulting',
-      status: 'PENDING_REVIEW',
-      createdAt: new Date(),
-      subcontracts: [{ id: 201, title: 'Analytics Subcontract' }],
-    },
-  ]);
+  const fetchContracts = async () => {
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error('User not logged in');
+      const token = await user.getIdToken();
+      console.log("Token being sent:", token);
 
-  const filteredContracts = contracts.filter(contract => {
-    const status = contract.status || 'DRAFT';
-    const matchesFilter = filter === 'all' || status === filter.toUpperCase();
-    const matchesSearch =
-      contract.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      contract.contract_type?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesFilter && matchesSearch;
-  });
+
+      const response = await axios.get('http://localhost:8081/api/contracts/my-auth', {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      // ✅ Log the contracts received from backend
+      console.log("Contracts received from backend:", response.data);
+
+      setContracts(response.data);
+    } catch (err) {
+      console.error('Failed to load contracts:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchContracts();
+  }, []);
 
   const handleSubmitReview = async (contractId) => {
-    alert("Simulated submit for review.");
+    alert('Simulated submit for review.');
     setContracts(prev =>
       prev.map(c =>
         c.id === contractId ? { ...c, status: 'PENDING_REVIEW' } : c
@@ -79,42 +48,32 @@ const ViewContracts = () => {
 
   const getStatusStyle = (status) => {
     switch (status) {
-      case 'APPROVED':
-        return 'bg-green-100 text-green-800';
-      case 'PENDING_REVIEW':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'REJECTED':
-        return 'bg-red-100 text-red-800';
+      case 'APPROVED': return 'bg-green-100 text-green-800';
+      case 'PENDING_REVIEW': return 'bg-yellow-100 text-yellow-800';
+      case 'REJECTED': return 'bg-red-100 text-red-800';
       case 'DRAFT':
-      default:
-        return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
+
+  const filteredContracts = contracts.filter(contract =>
+    contract.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    contract.contractType?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  if (loading) return <div className="p-4">Loading your contracts...</div>;
 
   return (
     <div className="p-4">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold">Your Contracts</h2>
-        <div className="flex space-x-4">
-          <input
-            type="text"
-            placeholder="Search contracts..."
-            className="px-4 py-2 border rounded-md"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          <select
-            className="px-4 py-2 border rounded-md"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-          >
-            <option value="all">All</option>
-            <option value="draft">Draft</option>
-            <option value="pending_review">Pending Review</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
-          </select>
-        </div>
+        <input
+          type="text"
+          placeholder="Search contracts..."
+          className="px-4 py-2 border rounded-md"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
       </div>
 
       <div className="bg-white shadow rounded-lg overflow-x-auto">
@@ -131,7 +90,7 @@ const ViewContracts = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {filteredContracts.map((contract) => {
+            {filteredContracts.map(contract => {
               const status = contract.status || 'DRAFT';
               return (
                 <tr key={contract.id}>
@@ -140,7 +99,7 @@ const ViewContracts = () => {
                       {contract.title}
                     </Link>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">{contract.contract_type || '-'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{contract.contractType || '-'}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusStyle(status)}`}>
                       {status.replace('_', ' ')}
@@ -159,34 +118,16 @@ const ViewContracts = () => {
                       </button>
                     )}
                     {status === 'PENDING_REVIEW' && (
-                      <Link
-                        to={`/assign-review/${contract.id}`}
-                        className="text-purple-600 hover:text-purple-900 mr-3"
-                      >
+                      <Link to={`/assign-review/${contract.id}`} className="text-purple-600 hover:text-purple-900 mr-3">
                         Assign
                       </Link>
                     )}
-                    <Link 
-                      to={`/contracts/edit/${contract.id}`} 
-                      className="text-blue-600 hover:text-blue-900"
-                    >
+                    <Link to={`/contracts/edit/${contract.id}`} className="text-blue-600 hover:text-blue-900">
                       Edit
                     </Link>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {contract.subcontracts?.length > 0 ? (
-                      <ul className="list-disc pl-5">
-                        {contract.subcontracts.map((sub) => (
-                          <li key={sub.id}>
-                            <Link to={`/contracts/details/${sub.id}`} className="text-blue-500 hover:underline">
-                              {sub.title || `Subcontract #${sub.id}`}
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <span className="text-gray-400 italic">No subcontracts</span>
-                    )}
+                    <span className="text-gray-400 italic">Subcontracts pending implementation</span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <Link to={`/contracts/audit-logs/${contract.id}`} className="text-indigo-500 hover:underline">

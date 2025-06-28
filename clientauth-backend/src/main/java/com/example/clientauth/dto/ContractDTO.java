@@ -3,6 +3,7 @@ package com.example.clientauth.dto;
 import java.util.List;
 
 public class ContractDTO {
+    private Long id; // ✅ Needed for frontend to identify/edit/delete contracts
     private String title;
     private String customer;
     private String contractNumber;
@@ -15,13 +16,28 @@ public class ContractDTO {
     private Double unusedAmount;
     private Double overageAmount;
     private String description;
-
     private Long contractTemplateId;
     private String createdByEmail;
-
+    private String status; // ✅ Needed to show status like DRAFT, PENDING_REVIEW, etc.
     private List<Long> subcontractIds;
 
-    // Getters and Setters
+    // ✅ Getters and Setters for all fields
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
 
     public String getTitle() {
         return title;

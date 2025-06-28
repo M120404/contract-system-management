@@ -44,6 +44,7 @@ public class ContractController {
 
     private ContractDTO convertToDTO(Contract contract) {
         ContractDTO dto = new ContractDTO();
+        dto.setId(contract.getId());
         dto.setTitle(contract.getTitle());
         dto.setCustomer(contract.getCustomer());
         dto.setContractNumber(contract.getContractNumber());
@@ -62,6 +63,7 @@ public class ContractController {
 
         dto.setUnusedAmount(contract.getUnusedAmount());
         dto.setOverageAmount(contract.getOverageAmount());
+        dto.setStatus(contract.getStatus() != null ? contract.getStatus().name() : null);
 
         if (contract.getContractTemplate() != null)
             dto.setContractTemplateId(contract.getContractTemplate().getId());
@@ -94,6 +96,7 @@ public class ContractController {
 
             return ResponseEntity.ok(dtos);
         } catch (Exception e) {
+            e.printStackTrace(); // Debugging Firebase token issues
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
     }
